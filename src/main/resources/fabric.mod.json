@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "xaerotools-companion",
+  "version": "${version}",
+  "name": "XaeroTools Companion",
+  "description": "Streams live positions and freshly-mapped Xaero regions to a self-hosted XaeroTools server. Configured from the XaeroTools tab in Meteor's GUI.",
+  "authors": [
+    "Dek"
+  ],
+  "icon": "assets/xaerotools-companion/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "dev.xaerotools.companion.XaeroToolsCompanion"
+    ]
+  },
+  "custom": {
+    "meteor-client:color": "79,142,247",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${java}",
+    "minecraft": "${minecraft}",
+    "meteor-client": "*"
+  }
+}
