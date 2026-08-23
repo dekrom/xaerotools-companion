@@ -3,7 +3,7 @@ package dev.xaerotools.companion;
 import dev.xaerotools.companion.sync.HighlightSync;
 import dev.xaerotools.companion.sync.PreviewScanner;
 import dev.xaerotools.companion.sync.RegionRef;
-import dev.xaerotools.companion.sync.RegionWatcher;
+import dev.xaerotools.companion.sync.LoadedRegionPoller;
 import dev.xaerotools.companion.sync.Uploader;
 import dev.xaerotools.companion.sync.XaeroFlush;
 import meteordevelopment.meteorclient.events.world.TickEvent;
@@ -149,6 +149,15 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
         .build()
     );
 
+    private final Setting<Integer> uploadRadius = sgUpload.add(new IntSetting.Builder()
+        .name("upload-radius")
+        .description("How far around you, in 512-block regions, freshly-mapped files are watched for. Regions you have recently been near stay watched for ten minutes after you leave, so the save Xaero makes behind you is still picked up.")
+        .defaultValue(2)
+        .min(0)
+        .sliderMax(8)
+        .build()
+    );
+
     private final Setting<Boolean> logFailures = sgUpload.add(new BoolSetting.Builder()
         .name("log-failures")
         .description("Report regions the server rejected in chat.")
@@ -199,8 +208,11 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
 
     // Read from the tick, watcher and full-sync threads; written on the main thread.
     private volatile Uploader uploader;
-    private RegionWatcher watcher;
+    private LoadedRegionPoller watcher;
     private Thread watcherThread;
+    /** The world folder Xaero is writing, republished for the poller thread. */
+    private volatile String currentWorldFolder;
+    private int worldIdCounter;
     private PreviewScanner scanner;
     private HighlightSync highlights;
     private int tickCounter;
@@ -284,11 +296,25 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
         if (mc.level != null) {
             if (livePreview.get() && scanner != null) scanner.tick(currentDimId());
             if (highlights != null) highlights.tick();
+            // The poller runs off-thread and must not touch the game or Xaero
+            // itself: the position and the world folder are published to it
+            // from here. The world id costs a reflection hop, so once a second.
+            if (watcher != null && mc.player != null) {
+                watcher.setPlayerBlock((int) Math.floor(mc.player.getX()), (int) Math.floor(mc.player.getZ()));
+                if (++worldIdCounter >= 20) {
+                    worldIdCounter = 0;
+                    currentWorldFolder = XaeroFlush.currentWorldId();
+                }
+            }
             int fs = forceSaveSeconds.get();
             if (fs > 0 && java.lang.System.currentTimeMillis() - lastForceSaveMs >= fs * 1000L) {
                 lastForceSaveMs = java.lang.System.currentTimeMillis();
                 XaeroFlush.flushDirtyRegions();
             }
+        } else if (watcher != null) {
+            // No world: stop producing candidates until the player rejoins,
+            // so the poller idles instead of re-stat-ing the last position.
+            watcher.clearPlayer();
         }
         if (!positionPing.get()) return;
         if (++tickCounter < pingInterval.get()) return;
@@ -313,7 +339,8 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
 
     private void startWatcher() {
         if (watcher != null || uploader == null) return;
-        watcher = new RegionWatcher(worldMapRoots(), settleSeconds::get, ref -> uploader.enqueue(ref));
+        watcher = new LoadedRegionPoller(worldMapRoots(), settleSeconds::get, uploadRadius::get,
+            uploadCaves::get, () -> currentWorldFolder, ref -> uploader.enqueue(ref));
         watcherThread = new Thread(watcher, "xt-region-watch");
         watcherThread.setDaemon(true);
         watcherThread.start();
@@ -411,9 +438,10 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
     public String statusLine() {
         if (!enabled.get()) return "off";
         if (uploader == null) return "starting on next tick";
-        return String.format("queue %d, sent %d, dropped %d, watching %d folder(s)",
+        return String.format("queue %d, sent %d, dropped %d, tracking %d region(s) in %d layer(s)",
             uploader.queueSize(), uploader.sent.get(), uploader.dropped.get(),
-            watcher == null ? 0 : watcher.watchedDirs());
+            watcher == null ? 0 : watcher.trackedCount(),
+            watcher == null ? 0 : watcher.layerCount());
     }
 
     @Override

@@ -9,8 +9,11 @@
 
 - **Position ping** — your position, dimension and heading about once a
   second; everyone watching the server's web map sees a live marker.
-- **Map upload** — watches `xaero/world-map/` (and `config/xaero/world-map/`)
-  and uploads every freshly-mapped region once its file settles. The server
+- **Map upload** — uploads freshly-mapped regions as you play. It tracks the
+  regions around you (and the ones you were near in the last ten minutes, so
+  the save Xaero makes behind you still counts) and uploads each one once its
+  file stops changing. Cost does not grow with the size of your map: a 300 GB
+  archive is tracked with the same few dozen file checks as a small one. The server
   keeps a verbatim per-player backup **and** tile-merges everyone's uploads
   into one shared map. `.xt sync` uploads the whole local map once — the
   initial backup; the watcher keeps it current afterwards. Cave layers stay
