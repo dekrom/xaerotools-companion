@@ -64,15 +64,15 @@ the [latest release](https://github.com/dekrom/xaerotools-companion/releases/lat
 
 | Minecraft | File |
 |---|---|
-| 1.21.4 | `xaerotools-companion-0.3.0+1.21.4.jar` |
-| 1.21.5 | `xaerotools-companion-0.3.0+1.21.5.jar` |
-| 1.21.6 | `xaerotools-companion-0.3.0+1.21.6.jar` |
-| 1.21.7 | `xaerotools-companion-0.3.0+1.21.7.jar` |
-| 1.21.8 | `xaerotools-companion-0.3.0+1.21.8.jar` |
-| 1.21.9 or 1.21.10 | `xaerotools-companion-0.3.0+1.21.10.jar` |
-| 1.21.11 | `xaerotools-companion-0.3.0+1.21.11.jar` |
-| 26.1.x | `xaerotools-companion-0.3.0+26.1.2.jar` |
-| 26.2.x | `xaerotools-companion-0.3.0+26.2.jar` |
+| 1.21.4 | `xaerotools-companion-0.3.1+1.21.4.jar` |
+| 1.21.5 | `xaerotools-companion-0.3.1+1.21.5.jar` |
+| 1.21.6 | `xaerotools-companion-0.3.1+1.21.6.jar` |
+| 1.21.7 | `xaerotools-companion-0.3.1+1.21.7.jar` |
+| 1.21.8 | `xaerotools-companion-0.3.1+1.21.8.jar` |
+| 1.21.9 or 1.21.10 | `xaerotools-companion-0.3.1+1.21.10.jar` |
+| 1.21.11 | `xaerotools-companion-0.3.1+1.21.11.jar` |
+| 26.1.x | `xaerotools-companion-0.3.1+26.1.2.jar` |
+| 26.2.x | `xaerotools-companion-0.3.1+26.2.jar` |
 
 Drop it in `mods` next to the others and start the game. Works with any
 XaeroTools release 0.2 or newer. (Or build it yourself — see below.)
