@@ -29,12 +29,35 @@ plus one-click **Sync all maps**.
 
 ## Install
 
-You need Fabric with [Meteor Client](https://meteorclient.com/) and Xaero's
-World Map installed — XaeroPlus on top works great. Without Xaero's there is
-nothing to upload, though the live position marker still works.
+### 1. The other mods first
 
-**Download ONE jar — match your Minecraft version** — from the
-[latest release](https://github.com/dekrom/xaerotools-companion/releases/latest):
+All four jars go in the same `mods` folder, in this order:
+
+1. **[Fabric Loader](https://fabricmc.net/use/installer/)** for your Minecraft
+   version — run the installer, pick the version, install.
+2. **[Meteor Client](https://meteorclient.com/)** for that same version. This
+   addon does nothing without it.
+3. **[Xaero's World Map](https://modrinth.com/mod/xaeros-world-map)** — it
+   draws the map that gets uploaded. Without it the live position marker still
+   works, but there is nothing to upload.
+   [XaeroPlus](https://github.com/rfresh2/XaeroPlus) on top is optional and
+   works great (and is what the Highlight Sync feature reads).
+
+Where the `mods` folder lives:
+
+| Launcher | Path |
+|---|---|
+| Vanilla launcher (Windows) | `%APPDATA%\.minecraft\mods` |
+| Vanilla launcher (macOS) | `~/Library/Application Support/minecraft/mods` |
+| Vanilla launcher (Linux) | `~/.minecraft/mods` |
+| CurseForge / Prism / MultiMC / Modrinth App | that instance's own `mods` folder |
+
+Paste the path into Windows Explorer, or press Cmd+Shift+G in Finder.
+
+### 2. This addon
+
+**Download exactly ONE jar — the one matching your Minecraft version** — from
+the [latest release](https://github.com/dekrom/xaerotools-companion/releases/latest):
 
 | Minecraft | File |
 |---|---|
@@ -48,28 +71,81 @@ nothing to upload, though the live position marker still works.
 | 26.1.x | `xaerotools-companion-0.3.0+26.1.2.jar` |
 | 26.2.x | `xaerotools-companion-0.3.0+26.2.jar` |
 
-Drop it into your `mods` folder and start the game (or build it yourself,
-below). Works with any XaeroTools release 0.2 or newer.
+Drop it in `mods` next to the others and start the game. Works with any
+XaeroTools release 0.2 or newer. (Or build it yourself — see below.)
+
+Everything lives in the **XaeroTools tab** in Meteor's top bar (next to
+Config), not in a module: settings persist with the rest of Meteor's config
+(`meteor-client/xaerotools.nbt`), and the tab shows live queue/sent status
+plus one-click **Sync all maps**.
 
 ## Setup
 
-Server on the **same machine** as the game: just `xaerotools serve …`, then
-flip **enabled** in the XaeroTools tab (or `.xt on`) — the defaults
-(`http://127.0.0.1:45746`, empty `token`) work as-is; loopback clients need
-no token.
+### The server is on this same PC
 
-For a **remote** server:
+Run `xaerotools` normally, then open Meteor's GUI (**Right Shift**), go to the
+**XaeroTools** tab and flip **enabled** (or type `.xt on`). The defaults
+(`http://127.0.0.1:45746`, empty `token`) already work — **loopback clients
+need no token**.
 
-1. On the server box: `xaerotools serve …`, then generate a token for your
-   account name — in the web map's **Share panel**, or with
-   `xaerotools tokens generate <YourAccountName>` (token shown once).
-2. In the XaeroTools tab: set `server-url`, paste the `token`, flip
-   **enabled**. `player-name` stays empty unless the token was generated for
-   a different name than the current session. Several accounts sharing one
-   config can each get a `NAME=TOKEN` line in `account-tokens` instead.
+### The server is someone else's PC
 
-Either way: `.xt sync` for the first full upload, `.xt status` to watch it
-drain, `.xt ping` to test the position path, `.xt on`/`.xt off` to toggle.
+1. **The host** starts the server so it accepts connections:
+
+   ```bash
+   xaerotools serve --lan --password pick-a-password
+   ```
+
+   and mints you a token, on their machine, with your account name:
+
+   ```bash
+   xaerotools tokens generate YourAccountName
+   ```
+
+   > The web map's **Share panel** can mint tokens too, but only on an
+   > unprotected local server — `--lan` deliberately disables token, merge and
+   > map-root management in the browser. When sharing, the host uses the
+   > command above.
+
+2. **You**, in the XaeroTools tab under **Connection**:
+
+   | Setting | Value |
+   |---|---|
+   | `server-url` | the host's address, e.g. `http://192.168.1.42:45746` |
+   | `token` | the token they sent you |
+   | `player-name` | leave empty (uses your account name) — set it only if the token was minted for a different spelling |
+
+   Then flip **enabled**.
+
+   Several accounts sharing one game install can instead put one `NAME=TOKEN`
+   line per account into `account-tokens`; the entry matching the logged-in
+   account wins.
+
+### Then, either way
+
+```
+.xt sync      # upload the map you already have — the initial backup
+.xt status    # connection + queue draining
+```
+
+The watcher keeps everything current afterwards.
+
+| Command | Does |
+|---|---|
+| `.xt on` / `.xt off` | turn the live link on or off |
+| `.xt status` | connection, queue length, what has been sent |
+| `.xt sync [world]` | full upload, all worlds or just one |
+| `.xt ping` | send one position now — tests the connection |
+
+### If it is not working
+
+| Symptom | Fix |
+|---|---|
+| No XaeroTools tab in Meteor | The jar does not match your Minecraft version, or Meteor itself is missing. Check the game's mod list. |
+| `.xt status` not connected | `server-url` needs `http://` and the port. |
+| Connection refused | Host is not running, started without `--lan`, or the firewall blocked it (Windows: allow **Private networks**). |
+| `401 unauthorized` | Token wrong, revoked, or minted for a different account name. |
+| Position works, no terrain | Xaero's World Map missing, or the game has not saved that area yet — run `.xt sync`. |
 
 The server contract (endpoints, folder rules, rate limits, security notes) is
 [`docs/INGEST.md`](https://github.com/dekrom/xaerotools/blob/main/docs/INGEST.md)
