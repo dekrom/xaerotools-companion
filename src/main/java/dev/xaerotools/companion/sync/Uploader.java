@@ -200,6 +200,53 @@ public class Uploader {
             });
     }
 
+    /**
+     * Chunk-highlight rows for one (world, database, dimension). Accepted
+     * batches call onOk, anything else calls onFail with the status (0 for a
+     * transport error) — the caller retries those rows rather than skipping
+     * them, and gives up on a status that says the server will never take
+     * them.
+     */
+    public void postHighlights(String world, String db, String dim, byte[] body,
+                               Runnable onOk, java.util.function.IntConsumer onFail) {
+        String url = trimmedBase() + "/ingest/v1/highlights?world=" + enc(world)
+            + "&db=" + enc(db) + "&dim=" + enc(dim);
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url))
+            .timeout(Duration.ofSeconds(20))
+            .header("Content-Type", "application/octet-stream");
+        String name = playerName.get();
+        if (!name.isEmpty()) b.header("X-XT-Player", name);
+        authorize(b);
+        HttpRequest req = b.POST(HttpRequest.BodyPublishers.ofByteArray(body)).build();
+        http.sendAsync(req, HttpResponse.BodyHandlers.discarding())
+            .whenComplete((resp, err) -> {
+                if (err == null && resp.statusCode() == 204) {
+                    if (onOk != null) onOk.run();
+                } else if (onFail != null) {
+                    onFail.accept(err != null ? 0 : resp.statusCode());
+                }
+            });
+    }
+
+    /**
+     * True when the configured server is not this machine — the highlight
+     * sync is for remote servers only, since one running here already reads
+     * the same XaeroPlus databases straight off disk. Literal loopback names
+     * only: resolving a host would mean a DNS lookup on the game thread.
+     */
+    public boolean isRemoteServer() {
+        try {
+            String host = URI.create(trimmedBase()).getHost();
+            if (host == null || host.isEmpty()) return false;
+            String h = host.toLowerCase(java.util.Locale.ROOT);
+            if (h.startsWith("[") && h.endsWith("]")) h = h.substring(1, h.length() - 1);
+            return !(h.equals("localhost") || h.endsWith(".localhost")
+                || h.equals("::1") || h.equals("0.0.0.0") || h.startsWith("127."));
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
     /** Fire-and-forget 1 Hz position ping; failures are silent by design. */
     public void postPosition(String player, String dim, double x, double y, double z, float yaw) {
         String body = String.format(java.util.Locale.ROOT,

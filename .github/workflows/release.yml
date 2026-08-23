@@ -24,11 +24,21 @@ jobs:
       # mislabeled jar — fail instead.
       - name: Tag must match mod-version
         run: ls build/libs/"${GITHUB_REF_NAME#v}"/xaerotools-companion-"${GITHUB_REF_NAME#v}"+*.jar
+      # The release page must show exactly one obvious jar per Minecraft
+      # version — sources jars stay on the CI artifacts, not here.
+      - name: Collect release files
+        run: |
+          mkdir release
+          cp build/libs/*/*.jar release/
+          rm release/*-sources.jar
+          cd release && sha256sum *.jar > SHA256SUMS.txt
       - uses: actions/attest-build-provenance@v2
         with:
-          subject-path: build/libs/**/*.jar
+          subject-path: release/*
       - uses: softprops/action-gh-release@v2
         with:
-          files: build/libs/*/*.jar
-          draft: true
+          files: release/*
+          body_path: .github/RELEASE_BODY.md
+          draft: false
+          make_latest: true
           generate_release_notes: true

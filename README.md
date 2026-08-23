@@ -29,11 +29,27 @@ plus one-click **Sync all maps**.
 
 ## Install
 
-Requires Minecraft 1.21.4–26.2 (Fabric) with
-[Meteor Client](https://meteorclient.com/). Grab the jar matching your
-Minecraft version from the
-[latest release](https://github.com/dekrom/xaerotools-companion/releases/latest)
-and drop it into your `.minecraft/mods` folder (or build it yourself, below).
+You need Fabric with [Meteor Client](https://meteorclient.com/) and Xaero's
+World Map installed — XaeroPlus on top works great. Without Xaero's there is
+nothing to upload, though the live position marker still works.
+
+**Download ONE jar — match your Minecraft version** — from the
+[latest release](https://github.com/dekrom/xaerotools-companion/releases/latest):
+
+| Minecraft | File |
+|---|---|
+| 1.21.4 | `xaerotools-companion-0.3.0+1.21.4.jar` |
+| 1.21.5 | `xaerotools-companion-0.3.0+1.21.5.jar` |
+| 1.21.6 | `xaerotools-companion-0.3.0+1.21.6.jar` |
+| 1.21.7 | `xaerotools-companion-0.3.0+1.21.7.jar` |
+| 1.21.8 | `xaerotools-companion-0.3.0+1.21.8.jar` |
+| 1.21.9 or 1.21.10 | `xaerotools-companion-0.3.0+1.21.10.jar` |
+| 1.21.11 | `xaerotools-companion-0.3.0+1.21.11.jar` |
+| 26.1.x | `xaerotools-companion-0.3.0+26.1.2.jar` |
+| 26.2.x | `xaerotools-companion-0.3.0+26.2.jar` |
+
+Drop it into your `mods` folder and start the game (or build it yourself,
+below). Works with any XaeroTools release 0.2 or newer.
 
 ## Setup
 
@@ -44,7 +60,8 @@ no token.
 
 For a **remote** server:
 
-1. On the server box: `xaerotools serve …` and
+1. On the server box: `xaerotools serve …`, then generate a token for your
+   account name — in the web map's **Share panel**, or with
    `xaerotools tokens generate <YourAccountName>` (token shown once).
 2. In the XaeroTools tab: set `server-url`, paste the `token`, flip
    **enabled**. `player-name` stays empty unless the token was generated for

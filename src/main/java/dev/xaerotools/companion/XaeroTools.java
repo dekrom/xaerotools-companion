@@ -1,5 +1,6 @@
 package dev.xaerotools.companion;
 
+import dev.xaerotools.companion.sync.HighlightSync;
 import dev.xaerotools.companion.sync.PreviewScanner;
 import dev.xaerotools.companion.sync.RegionRef;
 import dev.xaerotools.companion.sync.RegionWatcher;
@@ -45,6 +46,7 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
     private final SettingGroup sgPosition = settings.createGroup("Position");
     private final SettingGroup sgUpload = settings.createGroup("Map Upload");
     private final SettingGroup sgPreview = settings.createGroup("Live Preview");
+    private final SettingGroup sgHighlights = settings.createGroup("Highlight Sync");
 
     public final Setting<Boolean> enabled = sgGeneral.add(new BoolSetting.Builder()
         .name("enabled")
@@ -179,11 +181,28 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
         .build()
     );
 
+    private final Setting<Boolean> highlightSync = sgHighlights.add(new BoolSetting.Builder()
+        .name("highlight-sync")
+        .description("Share the chunks XaeroPlus finds (new chunks, old chunks, portals) with the server, which keeps its own database of them. Remote servers only — one running on this machine already reads these databases itself.")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Integer> highlightInterval = sgHighlights.add(new IntSetting.Builder()
+        .name("highlight-interval-seconds")
+        .description("Seconds between passes over XaeroPlus's find cache.")
+        .defaultValue(5)
+        .min(1)
+        .sliderMax(60)
+        .build()
+    );
+
     // Read from the tick, watcher and full-sync threads; written on the main thread.
     private volatile Uploader uploader;
     private RegionWatcher watcher;
     private Thread watcherThread;
     private PreviewScanner scanner;
+    private HighlightSync highlights;
     private int tickCounter;
     private long lastForceSaveMs;
 
@@ -207,12 +226,19 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
         });
         uploader.start();
         scanner = new PreviewScanner(uploader, previewRadius::get, previewPassDelay::get);
+        highlights = new HighlightSync(uploader, highlightInterval::get, highlightSync::get, msg -> {
+            if (logFailures.get()) mc.execute(() -> ChatUtils.warning("XaeroTools: " + msg));
+        });
         if (mapUpload.get()) startWatcher();
     }
 
     private void stop() {
         stopWatcher();
         scanner = null;
+        if (highlights != null) {
+            highlights.stop();
+            highlights = null;
+        }
         if (uploader != null) {
             uploader.stop();
             uploader = null;
@@ -257,6 +283,7 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
         if (uploader == null) start();
         if (mc.level != null) {
             if (livePreview.get() && scanner != null) scanner.tick(currentDimId());
+            if (highlights != null) highlights.tick();
             int fs = forceSaveSeconds.get();
             if (fs > 0 && java.lang.System.currentTimeMillis() - lastForceSaveMs >= fs * 1000L) {
                 lastForceSaveMs = java.lang.System.currentTimeMillis();
