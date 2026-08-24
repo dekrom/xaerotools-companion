@@ -61,7 +61,7 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
 
     private final Setting<String> serverUrl = sgConnection.add(new StringSetting.Builder()
         .name("server-url")
-        .description("Base URL of the XaeroTools server, e.g. http://192.0.2.10:45746.")
+        .description("Base URL of the XaeroTools server — the address of the machine running it, e.g. http://192.0.2.10:45746.")
         .defaultValue("http://127.0.0.1:45746")
         .build()
     );
@@ -192,7 +192,7 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
 
     private final Setting<Boolean> highlightSync = sgHighlights.add(new BoolSetting.Builder()
         .name("highlight-sync")
-        .description("Share the chunks XaeroPlus finds (new chunks, old chunks, portals) with the server, which keeps its own database of them. Remote servers only — one running on this machine already reads these databases itself.")
+        .description("Share the chunks XaeroPlus finds (new chunks by either detection, old/modern chunks, portals, old biomes, breadcrumb trails) with the server, which keeps its own database of them. Only modules you have enabled produce anything. Remote servers only — one running on this machine already reads these databases itself.")
         .defaultValue(true)
         .build()
     );
@@ -238,9 +238,11 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
         });
         uploader.start();
         scanner = new PreviewScanner(uploader, previewRadius::get, previewPassDelay::get);
-        highlights = new HighlightSync(uploader, highlightInterval::get, highlightSync::get, msg -> {
-            if (logFailures.get()) mc.execute(() -> ChatUtils.warning("XaeroTools: " + msg));
-        });
+        // Not behind log-failures: that setting silences per-region rejection
+        // noise, and highlight sync only ever speaks to say a source or the
+        // whole channel has gone quiet — which must not be silent.
+        highlights = new HighlightSync(uploader, highlightInterval::get, highlightSync::get,
+            msg -> mc.execute(() -> ChatUtils.warning("XaeroTools: " + msg)));
         if (mapUpload.get()) startWatcher();
     }
 
@@ -339,8 +341,12 @@ public class XaeroTools extends meteordevelopment.meteorclient.systems.System<Xa
 
     private void startWatcher() {
         if (watcher != null || uploader == null) return;
+        // Captured once, as in fullSync(): the poller is not joined on stop,
+        // so a pass still running must not read the field back after stop()
+        // has nulled it — or, worse, after a restart has replaced it.
+        Uploader up = uploader;
         watcher = new LoadedRegionPoller(worldMapRoots(), settleSeconds::get, uploadRadius::get,
-            uploadCaves::get, () -> currentWorldFolder, ref -> uploader.enqueue(ref));
+            uploadCaves::get, () -> currentWorldFolder, up::enqueue);
         watcherThread = new Thread(watcher, "xt-region-watch");
         watcherThread.setDaemon(true);
         watcherThread.start();

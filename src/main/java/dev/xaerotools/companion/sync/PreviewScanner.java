@@ -88,6 +88,9 @@ public class PreviewScanner {
 
     private final Map<Long, Integer> sentHash = new HashMap<>();
     private Object levelKey;
+    /** Bumped on every world change; an in-flight batch from before one is
+     *  identified by it without holding the old level alive. */
+    private int levelEpoch;
     private int cursor = -1; // -1 = between sweeps
     private int cooldown;
     private int sweepCx;
@@ -123,6 +126,7 @@ public class PreviewScanner {
         if (levelKey != mc.level) {
             // New world/dimension: everything must be re-sent.
             levelKey = mc.level;
+            levelEpoch++;
             sentHash.clear();
             cursor = -1;
             cooldown = 0;
@@ -202,11 +206,18 @@ public class PreviewScanner {
         body[5] = (byte) batchCount;
         body[6] = (byte) (batchCount >> 8);
         Map<Long, Integer> sent = batchHashes;
+        int epoch = levelEpoch;
         batch = null;
         batchHashes = new HashMap<>();
         // Commit only on acceptance: a 429/failed batch recomputes and resends
-        // on a later sweep instead of leaving permanent holes.
-        uploader.postPreview(dim, body, () -> sentHash.putAll(sent));
+        // on a later sweep instead of leaving permanent holes. The acceptance
+        // arrives on an HTTP thread, so the commit is handed back to the tick —
+        // sentHash is a plain map the tick reads, clears and sizes — and is
+        // dropped if the world changed meanwhile, since the clear that change
+        // performs must not be undone by hashes from the old one.
+        uploader.postPreview(dim, body, () -> mc.execute(() -> {
+            if (levelEpoch == epoch) sentHash.putAll(sent);
+        }));
     }
 
     /** 16x16 RGB565 for one chunk, or null when it holds nothing visible. */

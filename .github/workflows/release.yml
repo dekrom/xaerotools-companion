@@ -14,23 +14,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # A tag that doesn't match mod-version would silently release a
+      # mislabeled jar — fail before the nine-version build, not after it.
+      - name: Tag must match mod-version
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          grep -q "^mod\.version = \"$want\"$" stonecutter.properties.toml || {
+            echo "tag $GITHUB_REF_NAME wants version $want, but stonecutter.properties.toml says:"
+            grep -n "^mod\.version" stonecutter.properties.toml
+            exit 1
+          }
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 25
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew buildAndCollect
-      # A tag that doesn't match mod-version would silently release a
-      # mislabeled jar — fail instead.
-      - name: Tag must match mod-version
+      # The jars must really carry the tagged version: buildAndCollect names
+      # the output directory after mod-version, so this catches a build that
+      # somehow used another one.
+      - name: Built jars must carry the tag version
         run: ls build/libs/"${GITHUB_REF_NAME#v}"/xaerotools-companion-"${GITHUB_REF_NAME#v}"+*.jar
       # The release page must show exactly one obvious jar per Minecraft
       # version — sources jars stay on the CI artifacts, not here.
       - name: Collect release files
         run: |
+          ver="${GITHUB_REF_NAME#v}"
           mkdir release
-          cp build/libs/*/*.jar release/
+          cp build/libs/"$ver"/*.jar release/
           rm release/*-sources.jar
+          # One jar per stonecutter node, or the download table on the release
+          # page points at a file nobody built. Counted from settings.gradle.kts
+          # so adding a node fails here instead of shipping short.
+          nodes=$(sed -n 's/.*versions(\(.*\)).*/\1/p' settings.gradle.kts | grep -o '"[^"]*"' | wc -l)
+          jars=$(ls release/*.jar | wc -l)
+          [ "$jars" -eq "$nodes" ] || {
+            echo "expected $nodes jars (one per stonecutter node), got $jars:"
+            ls release
+            exit 1
+          }
           cd release && sha256sum *.jar > SHA256SUMS.txt
       - uses: actions/attest-build-provenance@v2
         with:
@@ -39,6 +61,9 @@ jobs:
         with:
           files: release/*
           body_path: .github/RELEASE_BODY.md
+          # draft would hide the release from everyone who isn't a maintainer;
+          # fail_on_unmatched_files stops an assetless release being published.
           draft: false
+          fail_on_unmatched_files: true
           make_latest: true
           generate_release_notes: true

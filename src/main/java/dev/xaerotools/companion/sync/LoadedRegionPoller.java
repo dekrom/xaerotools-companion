@@ -88,10 +88,12 @@ public class LoadedRegionPoller implements Runnable {
     private volatile int playerRz;
     private volatile boolean running = true;
 
+    /** The other way round: written by the poller, read for {@code .xt status}. */
+    private volatile List<Path> layers = List.of();
+
     // Poller-thread state only.
     private final Map<Path, Entry> seen = new LinkedHashMap<>();
     private final LinkedHashMap<Long, Long> recent = new LinkedHashMap<>();
-    private List<Path> layers = List.of();
     private long layersAt;
     private long startedAt;
 

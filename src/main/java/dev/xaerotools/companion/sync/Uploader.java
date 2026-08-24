@@ -77,6 +77,11 @@ public class Uploader {
         queue.clear();
         queued.clear();
         attempts.clear();
+        // A new Uploader is built on every enable, so the client goes with the
+        // old one or its selector thread lives until GC. shutdownNow, not
+        // close, which waits: the preview and highlight posts still in flight
+        // are cancelled, and both callers treat that as a plain failure.
+        http.shutdownNow();
     }
 
     public boolean isRunning() {

@@ -21,6 +21,11 @@
 - **Live preview** — a coarse color sketch of the chunks you're currently
   seeing, drawn on the shared map before the game even saves them; the real
   region upload replaces it.
+- **Highlight sync** — if you run XaeroPlus, the chunks it finds (new chunks
+  by either detection and their inverses, old/modern chunks, portals, old
+  biomes, breadcrumb trails) go up as rows every few seconds, so the shared
+  map shows the whole group's finds. On by default, remote servers only —
+  see [Setup](#highlight-sync-xaeroplus-only).
 
 Nothing else changes: the game keeps writing its own local map exactly as
 before, the addon only ever reads it.
@@ -34,17 +39,19 @@ plus one-click **Sync all maps**.
 
 ### 1. The other mods first
 
-All four jars go in the same `mods` folder, in this order:
+All of it has to be for the **same Minecraft version** — mixing versions is
+the usual reason the tab never shows up. In this order:
 
 1. **[Fabric Loader](https://fabricmc.net/use/installer/)** for your Minecraft
-   version — run the installer, pick the version, install.
-2. **[Meteor Client](https://meteorclient.com/)** for that same version. This
-   addon does nothing without it.
-3. **[Xaero's World Map](https://modrinth.com/mod/xaeros-world-map)** — it
-   draws the map that gets uploaded. Without it the live position marker still
-   works, but there is nothing to upload.
+   version — run the installer, pick the version, install. It is not a jar you
+   copy; the installer does it.
+2. **[Meteor Client](https://meteorclient.com/)** for that same version — its
+   jar goes in the `mods` folder. This addon does nothing without it.
+3. **[Xaero's World Map](https://modrinth.com/mod/xaeros-world-map)** for that
+   version, in `mods` too — it draws the map that gets uploaded. Without it the
+   live position marker still works, but there is nothing to upload.
    [XaeroPlus](https://github.com/rfresh2/XaeroPlus) on top is optional and
-   works great (and is what the Highlight Sync feature reads).
+   works great — it is what **highlight sync** reads.
 
 Where the `mods` folder lives:
 
@@ -60,22 +67,27 @@ Paste the path into Windows Explorer, or press Cmd+Shift+G in Finder.
 ### 2. This addon
 
 **Download exactly ONE jar — the one matching your Minecraft version** — from
-the [latest release](https://github.com/dekrom/xaerotools-companion/releases/latest):
+the [latest release](https://github.com/dekrom/xaerotools-companion/releases/latest).
 
-| Minecraft | File |
+Every jar there is named `xaerotools-companion-<release>+<Minecraft>.jar`. The
+release number is the same for all of them; pick by the part after the `+`:
+
+| Minecraft | The jar ending in |
 |---|---|
-| 1.21.4 | `xaerotools-companion-0.3.1+1.21.4.jar` |
-| 1.21.5 | `xaerotools-companion-0.3.1+1.21.5.jar` |
-| 1.21.6 | `xaerotools-companion-0.3.1+1.21.6.jar` |
-| 1.21.7 | `xaerotools-companion-0.3.1+1.21.7.jar` |
-| 1.21.8 | `xaerotools-companion-0.3.1+1.21.8.jar` |
-| 1.21.9 or 1.21.10 | `xaerotools-companion-0.3.1+1.21.10.jar` |
-| 1.21.11 | `xaerotools-companion-0.3.1+1.21.11.jar` |
-| 26.1.x | `xaerotools-companion-0.3.1+26.1.2.jar` |
-| 26.2.x | `xaerotools-companion-0.3.1+26.2.jar` |
+| 1.21.4 | `+1.21.4.jar` |
+| 1.21.5 | `+1.21.5.jar` |
+| 1.21.6 | `+1.21.6.jar` |
+| 1.21.7 | `+1.21.7.jar` |
+| 1.21.8 | `+1.21.8.jar` |
+| 1.21.9 or 1.21.10 | `+1.21.10.jar` |
+| 1.21.11 | `+1.21.11.jar` |
+| 26.1.x | `+26.1.2.jar` |
+| 26.2.x | `+26.2.jar` |
 
-Drop it in `mods` next to the others and start the game. Works with any
-XaeroTools release 0.2 or newer. (Or build it yourself — see below.)
+Drop it in `mods` next to the others and start the game. That is the whole
+install — no build step and no JDK, the release jars are ready to run.
+`SHA256SUMS.txt` on the release page verifies your download. Works with any
+XaeroTools server release 0.2 or newer. (Or build it yourself — see below.)
 
 Everything lives in the **XaeroTools tab** in Meteor's top bar (next to
 Config), not in a module: settings persist with the rest of Meteor's config
@@ -114,7 +126,7 @@ need no token**.
 
    | Setting | Value |
    |---|---|
-   | `server-url` | the host's address, e.g. `http://192.168.1.42:45746` |
+   | `server-url` | the host's address, e.g. `http://192.0.2.42:45746` |
    | `token` | the token they sent you |
    | `player-name` | leave empty (uses your account name) — set it only if the token was minted for a different spelling |
 
@@ -123,6 +135,19 @@ need no token**.
    Several accounts sharing one game install can instead put one `NAME=TOKEN`
    line per account into `account-tokens`; the entry matching the logged-in
    account wins.
+
+### Highlight sync (XaeroPlus only)
+
+If XaeroPlus is installed, `highlight-sync` under **Highlights** is **on by
+default**. Every few seconds it uploads the chunks XaeroPlus has found — new
+chunks by either detection and their inverses, old/modern chunks, portals, old
+biomes, breadcrumb trails — to the server in `server-url`, which keeps its own
+database of them, so the shared map shows the whole group's finds. Rows travel,
+never your databases, and only modules you have enabled produce anything.
+
+**Remote servers only.** A server on this machine already reads those databases
+from disk, so it refuses the upload rather than keep a second copy. Turn the
+whole thing off with `highlight-sync` in the XaeroTools tab.
 
 ### Then, either way
 
@@ -159,16 +184,21 @@ in the main repo. Plain HTTP: share beyond a trusted LAN only over a VPN
 
 Multi-version via [Stonecutter](https://stonecutter.kikugie.dev/) — one jar
 per Meteor release from 1.21.4 through 26.2 (the 1.21.10 jar also covers
-1.21.9, which never got its own Meteor build):
+1.21.9, which never got its own Meteor build).
+
+You need a JDK 21 or newer on `PATH` (or `JAVA_HOME`) just to start Gradle;
+Gradle then downloads the exact compile toolchain each version wants — 26.1
+and newer build on Java 25.
 
 ```bash
 ./gradlew buildAndCollect          # every version → build/libs/<mod version>/
 ./gradlew :1.21.4:build            # just one version → versions/1.21.4/build/libs/
 ```
 
+On Windows, `gradlew.bat` in place of `./gradlew` (`gradlew.bat buildAndCollect`).
+
 `./gradlew "Set active project to 1.21.4"` switches which version the IDE
-sees; `"Reset active project"` returns to 26.2. Gradle fetches a matching JDK
-toolchain automatically if you don't have one.
+sees; `"Reset active project"` returns to 26.2.
 
 ## License
 

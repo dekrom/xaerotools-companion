@@ -1,16 +1,20 @@
 ## Which jar? Match your Minecraft version
 
-| Minecraft | File |
+Every jar here is named `xaerotools-companion-<release>+<minecraft>.jar`. The
+part after the `+` is the Minecraft version — that is the only part you need to
+match; the number before it is just this release.
+
+| Minecraft | Download the jar ending in |
 |---|---|
-| 1.21.4 | `xaerotools-companion-0.3.0+1.21.4.jar` |
-| 1.21.5 | `xaerotools-companion-0.3.0+1.21.5.jar` |
-| 1.21.6 | `xaerotools-companion-0.3.0+1.21.6.jar` |
-| 1.21.7 | `xaerotools-companion-0.3.0+1.21.7.jar` |
-| 1.21.8 | `xaerotools-companion-0.3.0+1.21.8.jar` |
-| 1.21.9 or 1.21.10 | `xaerotools-companion-0.3.0+1.21.10.jar` |
-| 1.21.11 | `xaerotools-companion-0.3.0+1.21.11.jar` |
-| 26.1.x | `xaerotools-companion-0.3.0+26.1.2.jar` |
-| 26.2.x | `xaerotools-companion-0.3.0+26.2.jar` |
+| 1.21.4 | `+1.21.4.jar` |
+| 1.21.5 | `+1.21.5.jar` |
+| 1.21.6 | `+1.21.6.jar` |
+| 1.21.7 | `+1.21.7.jar` |
+| 1.21.8 | `+1.21.8.jar` |
+| 1.21.9 or 1.21.10 | `+1.21.10.jar` |
+| 1.21.11 | `+1.21.11.jar` |
+| 26.1.x | `+26.1.2.jar` |
+| 26.2.x | `+26.2.jar` |
 
 ## Install — 3 steps
 
