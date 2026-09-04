@@ -144,8 +144,27 @@ public class HighlightSync {
     private final BooleanSupplier enabled;
     private final Consumer<String> log;
 
-    /** Highest foundTime the server has taken, per world|db|dim. Persisted. */
-    private final Map<String, Long> committed = new ConcurrentHashMap<>();
+    /**
+     * The last row the server has taken, per world|db|dim, as the pair
+     * (foundTime, packed chunk). Rows are ordered by both: XaeroPlus stamps
+     * every chunk found in one tick with the same millisecond, so a batch cut
+     * on time alone would strand the rows that share its last one. Persisted.
+     */
+    private final Map<String, Mark> committed = new ConcurrentHashMap<>();
+
+    private record Mark(long time, long chunk) implements Comparable<Mark> {
+        @Override
+        public int compareTo(Mark o) {
+            int c = Long.compare(time, o.time);
+            return c != 0 ? c : Long.compare(chunk, o.chunk);
+        }
+
+        /** Is the row (time, chunk) past this mark? */
+        boolean before(long t, long c) {
+            return time < t || (time == t && chunk < c);
+        }
+    }
+
     /** Keys with a batch outstanding; cleared by that batch's reply. */
     private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 
@@ -208,27 +227,28 @@ public class HighlightSync {
         // past the rows of an earlier failure — which are then never resent.
         // The reply always clears this, so it cannot wedge.
         if (inFlight.contains(key)) return;
-        Long mark = committed.get(key);
+        Mark mark = committed.get(key);
         if (mark == null) {
             // First sighting of this database: anchor where the link came up,
             // not at now — a module the user switched on ten minutes in has
             // been finding chunks since then, and those are ours to send.
             // Everything older is history, seeded server-side, not streamed.
-            committed.put(key, sessionStartMs);
+            committed.put(key, new Mark(sessionStartMs, Long.MIN_VALUE));
             dirty = true;
             return;
         }
-        long since = mark;
         List<long[]> fresh = new ArrayList<>();
         for (Long2LongMap.Entry e : map.long2LongEntrySet()) {
-            if (e.getLongValue() > since) fresh.add(new long[] {e.getLongKey(), e.getLongValue()});
+            if (mark.before(e.getLongValue(), e.getLongKey())) {
+                fresh.add(new long[] {e.getLongKey(), e.getLongValue()});
+            }
         }
         if (fresh.isEmpty()) return;
-        // Oldest first, so the watermark the batch advances to is a point every
-        // row before it has already passed.
-        fresh.sort((a, b) -> Long.compare(a[1], b[1]));
+        // Oldest first, ties broken by chunk — a total order, so the mark the
+        // batch advances to is a point every row before it has already passed.
+        fresh.sort((a, b) -> a[1] != b[1] ? Long.compare(a[1], b[1]) : Long.compare(a[0], b[0]));
         int n = Math.min(fresh.size(), BATCH_MAX);
-        long batchMark = fresh.get(n - 1)[1];
+        Mark batchMark = new Mark(fresh.get(n - 1)[1], fresh.get(n - 1)[0]);
         ByteBuffer buf = ByteBuffer.allocate(7 + n * 16).order(ByteOrder.LITTLE_ENDIAN);
         buf.put(new byte[] {'X', 'T', 'H', 'L', 1});
         buf.putShort((short) n);
@@ -241,7 +261,7 @@ public class HighlightSync {
         inFlight.add(key);
         uploader.postHighlights(world, s.db, dimKey, buf.array(),
             () -> {
-                committed.merge(key, batchMark, Math::max);
+                committed.merge(key, batchMark, (a, b) -> a.compareTo(b) >= 0 ? a : b);
                 inFlight.remove(key);
                 dirty = true;
             },
@@ -348,7 +368,14 @@ public class HighlightSync {
         }
         for (String name : p.stringPropertyNames()) {
             try {
-                committed.put(name, Long.parseLong(p.getProperty(name).trim()));
+                // "time" (older builds) or "time,chunk"; a bare time re-sends
+                // the rows at that millisecond once, which the server's
+                // oldest-wins merge makes harmless.
+                String v = p.getProperty(name).trim();
+                int comma = v.indexOf(',');
+                long time = Long.parseLong(comma < 0 ? v : v.substring(0, comma));
+                long chunk = comma < 0 ? Long.MIN_VALUE : Long.parseLong(v.substring(comma + 1));
+                committed.put(name, new Mark(time, chunk));
             } catch (NumberFormatException ignored) {
                 // Hand-edited or truncated line: treat as unseen.
             }
@@ -361,13 +388,13 @@ public class HighlightSync {
         // waits for the next one to come along.
         dirty = false;
         Properties p = new Properties();
-        for (Map.Entry<String, Long> e : committed.entrySet()) {
-            p.setProperty(e.getKey(), Long.toString(e.getValue()));
+        for (Map.Entry<String, Mark> e : committed.entrySet()) {
+            p.setProperty(e.getKey(), e.getValue().time() + "," + e.getValue().chunk());
         }
         Path file = stateFile();
         Path tmp = file.resolveSibling(STATE_FILE + ".tmp");
         try (OutputStream out = Files.newOutputStream(tmp)) {
-            p.store(out, "XaeroTools highlight sync — highest foundTime the server has taken");
+            p.store(out, "XaeroTools highlight sync — last (foundTime,chunk) the server has taken");
         } catch (IOException e) {
             dirty = true;
             return;

@@ -26,8 +26,8 @@ import java.util.function.Supplier;
  *
  * One background thread drains the queue, throttled by the configured delay
  * setting so a full-map sync never trips the server's rate limit. 429 backs
- * off and requeues; a truncated-region 400 (the game was mid-write) waits and
- * retries; anything else retries a few times before being dropped. Tokens go
+ * off and requeues; a truncated-region 400 (the game was mid-write) and any
+ * 5xx wait and retry a few times; other rejections are dropped. Tokens go
  * only into the Authorization header — never into URLs or logs. With no token
  * configured the header is omitted entirely: a server on the same machine
  * accepts loopback clients tokenless, identified by the X-XT-Player header.
@@ -120,8 +120,10 @@ public class Uploader {
 
     private void uploadOne(RegionRef ref) throws InterruptedException {
         byte[] bytes;
+        long mtime;
         try {
             bytes = Files.readAllBytes(ref.file());
+            mtime = Files.getLastModifiedTime(ref.file()).toMillis();
         } catch (IOException e) {
             // The game may have just moved the file aside; treat like transient.
             retry(ref, "read failed: " + e.getMessage());
@@ -138,6 +140,9 @@ public class Uploader {
         // ignores it whenever a valid token names the player.
         String name = playerName.get();
         if (!name.isEmpty()) b.header("X-XT-Player", name);
+        // When Xaero wrote the file: the server stamps the backup with it and
+        // lets a newer merged region keep its tiles over an older upload.
+        if (mtime > 0) b.header("X-XT-Mtime", Long.toString(mtime));
         authorize(b);
         HttpRequest req = b.POST(HttpRequest.BodyPublishers.ofByteArray(bytes)).build();
         try {
@@ -154,6 +159,12 @@ public class Uploader {
                 retry(ref, "caught mid-write");
             } else if (code == 401 || code == 403) {
                 drop(ref, "auth rejected (" + code + ") — check the token and player name");
+            } else if (code >= 500 || code == 408) {
+                // The server's problem, not the file's: a full disk or a
+                // wedged store clears up, so this region must not be lost
+                // for the rest of the session.
+                Thread.sleep(3000);
+                retry(ref, "server error " + code);
             } else {
                 drop(ref, code + " " + resp.body());
             }

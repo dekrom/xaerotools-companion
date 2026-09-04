@@ -128,6 +128,11 @@ public class PreviewScanner {
             levelKey = mc.level;
             levelEpoch++;
             sentHash.clear();
+            // Chunks already batched belong to the old level: posting them
+            // under the new dimension would paint them into its canvas.
+            batch = null;
+            batchCount = 0;
+            batchHashes = new HashMap<>();
             cursor = -1;
             cooldown = 0;
         }

@@ -14,7 +14,8 @@ import java.nio.file.Path;
  *
  * config/xaeroplus.txt is the seam on purpose: XaeroPlus's settings registry
  * is internal and moves between releases, while the file is a stable
- * "[XP] &lt;setting name&gt;:&lt;value&gt;" list. It is re-read whenever its
+ * "&lt;setting name&gt;:&lt;value&gt;" list (the "[XP] " prefix is GUI-only; the
+ * file carries the bare name). It is re-read whenever its
  * timestamp changes, so a setting toggled in game lands on the next sweep
  * rather than the next launch.
  */
@@ -54,7 +55,7 @@ public class XaeroPlusConfig {
     }
 
     private static boolean readBool(Path file, String name, boolean fallback) {
-        String prefix = "[XP] " + name + ":";
+        String prefix = name + ":";
         try {
             for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
                 if (line.startsWith(prefix)) {
